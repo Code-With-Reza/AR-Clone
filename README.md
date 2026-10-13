@@ -110,6 +110,61 @@ http://localhost:8000/
 EAGLER_BUILD_CAP_MIB=12000 node wasm-toolchain/build-single-html.js --output build/eaglercraft-26.2.html
 ```
 
+## GitHub release workflow
+
+This repo includes a GitHub Actions workflow at [.github/workflows/release.yml](.github/workflows/release.yml) that automatically builds the project and uploads the compiled ZIP targets to a GitHub Release.
+
+You can trigger it in two ways:
+
+1. Push a tag like `v26.2.0` or `release-26.2.0`.
+2. Run the workflow manually from the GitHub Actions tab with the `tag_name` input.
+
+The workflow does the following:
+
+- installs Java 25
+- installs Node.js
+- runs the Gradle compile step
+- builds the desktop asset EPK
+- builds the standalone HTML client and optional music ZIP
+- packages the outputs into multiple ZIPs
+- uploads them to a GitHub Release
+
+## Manual release workflow
+
+If you want a reproducible way to build the project and package the outputs for a GitHub release or other artifact storage, use the helper script at [release.sh](release.sh):
+
+```bash
+chmod +x ./release.sh
+./release.sh
+```
+
+This script does the following:
+
+1. Compiles the Java sources with Gradle.
+2. Builds the desktop asset EPK pack under [target_lwjgl_desktop/](target_lwjgl_desktop/).
+3. Produces the standalone HTML client and optional music ZIP.
+4. Creates multiple release ZIPs under a local `releases/` directory.
+
+The generated release targets are:
+
+- `eaglercraft-26.2-web-html-<timestamp>.zip` — single-file HTML build
+- `eaglercraft-26.2-web-files-<timestamp>.zip` — raw web output from [target_teavm_wasm_gc/build/web](target_teavm_wasm_gc/build/web)
+- `eaglercraft-26.2-desktop-assets-<timestamp>.zip` — packaged asset archive
+
+You can also choose a custom output directory:
+
+```bash
+./release.sh --output-dir ./artifacts
+```
+
+To reuse existing build outputs without recompiling:
+
+```bash
+./release.sh --skip-compile --output-dir ./artifacts
+```
+
+This is the easiest manual release path when you want separate ZIP artifacts instead of a single bundled download.
+
 ## Troubleshooting
 
 ### Gradle fails with a Java version error

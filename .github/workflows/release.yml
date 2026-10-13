@@ -1,0 +1,74 @@
+name: Release build
+
+"on":
+  push:
+    tags:
+      - "v*"
+      - "release-*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to create or update (for example: v26.2.0)"
+        required: true
+        default: "v26.2.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm install --no-fund --no-audit
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew ./release.sh
+
+      - name: Build all release artifacts
+        run: ./release.sh --output-dir "$GITHUB_WORKSPACE/releases"
+
+      - name: Prepare release tag name
+        id: release_tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            releases/*.zip
+
+      - name: Upload build zips as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zips
+          path: releases/*.zip
+          if-no-files-found: error
