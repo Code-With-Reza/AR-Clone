@@ -125,9 +125,28 @@ The workflow does the following:
 - installs Node.js
 - runs the Gradle compile step
 - builds the desktop asset EPK
-- builds the standalone HTML client and optional music ZIP
+- builds both standalone HTML variants: lean and music-enabled
 - packages the outputs into multiple ZIPs
 - uploads them to a GitHub Release
+
+### Audio sources and file layout
+
+The browser client ships with audio in generated archive files, not in a checked-in source folder:
+
+- [target_teavm/build/web/sounds.epk](target_teavm/build/web/sounds.epk) — generated sound-effects archive
+- [target_teavm/build/web/music.epk](target_teavm/build/web/music.epk) — generated music/archive for background music and music discs
+- [target_teavm/build/web/assets.epk](target_teavm/build/web/assets.epk) — generated general asset archive
+
+Where they come from:
+
+1. The actual game resources live under [game/src/main/resources](game/src/main/resources).
+2. The desktop packager task in [target_lwjgl_desktop/build.gradle.kts](target_lwjgl_desktop/build.gradle.kts) creates `assets.epk` from that content.
+3. The web packaging step copies or references the generated `assets.epk`, `sounds.epk`, and `music.epk` into the browser output under [target_teavm/build/web](target_teavm/build/web).
+4. The single-file HTML builder then embeds these EPKs into the final client or exports `music.epk` separately as an optional resource pack.
+
+This is why you do not find `sounds.epk` or `music.epk` as normal source files in the repo: they are build artifacts created during the asset generation process.
+
+The lean standalone build excludes `music.epk` by default and emits a separate optional music ZIP. The music-enabled build embeds the music archive directly into the HTML file instead.
 
 ## Manual release workflow
 

@@ -11,8 +11,8 @@ usage() {
   cat <<'EOF'
 Usage: ./release.sh [--output-dir DIR] [--skip-compile]
 
-Build the Java sources, create the standalone HTML package, and zip the release
-artifacts into multiple zip targets under the output directory.
+Build the Java sources, create both standalone HTML variants (lean and with music),
+and zip the release artifacts into multiple zip targets under the output directory.
 
 Options:
   -o, --output-dir DIR   Directory to write release zips into (default: ./releases)
@@ -67,17 +67,24 @@ if [[ ${SKIP_COMPILE} -eq 0 ]]; then
   "${ROOT_DIR}/gradlew" :target_lwjgl_desktop:buildAssetsEPK --console=plain --no-daemon --max-workers=1
 fi
 
-echo "==> Building standalone HTML client"
+echo "==> Building lean standalone HTML client"
 node "${ROOT_DIR}/wasm-toolchain/build-single-html.js" \
-  --output "${BUILD_DIR}/eaglercraft-26.2-single.html" \
+  --output "${BUILD_DIR}/eaglercraft-26.2-lean.html" \
   --music-pack-output "${BUILD_DIR}/eaglercraft-26.2-optional-music.zip"
 
-ZIP_WEB_HTML="${OUTPUT_DIR}/eaglercraft-26.2-web-html-${TIMESTAMP}.zip"
+echo "==> Building music-enabled standalone HTML client"
+node "${ROOT_DIR}/wasm-toolchain/build-single-html.js" \
+  --output "${BUILD_DIR}/eaglercraft-26.2-with-music.html" \
+  --with-music
+
+ZIP_WEB_HTML_LEAN="${OUTPUT_DIR}/eaglercraft-26.2-web-html-lean-${TIMESTAMP}.zip"
+ZIP_WEB_HTML_MUSIC="${OUTPUT_DIR}/eaglercraft-26.2-web-html-with-music-${TIMESTAMP}.zip"
 ZIP_WEB_FILES="${OUTPUT_DIR}/eaglercraft-26.2-web-files-${TIMESTAMP}.zip"
 ZIP_DESKTOP="${OUTPUT_DIR}/eaglercraft-26.2-desktop-assets-${TIMESTAMP}.zip"
 
 echo "==> Packaging release zips"
-zip -j "${ZIP_WEB_HTML}" "${BUILD_DIR}/eaglercraft-26.2-single.html" "${BUILD_DIR}/eaglercraft-26.2-optional-music.zip"
+zip -j "${ZIP_WEB_HTML_LEAN}" "${BUILD_DIR}/eaglercraft-26.2-lean.html" "${BUILD_DIR}/eaglercraft-26.2-optional-music.zip"
+zip -j "${ZIP_WEB_HTML_MUSIC}" "${BUILD_DIR}/eaglercraft-26.2-with-music.html"
 zip -r "${ZIP_WEB_FILES}" "${ROOT_DIR}/target_teavm_wasm_gc/build/web"
 zip -r "${ZIP_DESKTOP}" "${ROOT_DIR}/target_lwjgl_desktop/build/epk/assets.epk"
 
@@ -85,6 +92,6 @@ printf '\nRelease artifacts:\n'
 ls -lh "${OUTPUT_DIR}"
 
 printf '\nCreated:\n'
-for artifact in "${ZIP_WEB_HTML}" "${ZIP_WEB_FILES}" "${ZIP_DESKTOP}"; do
+for artifact in "${ZIP_WEB_HTML_LEAN}" "${ZIP_WEB_HTML_MUSIC}" "${ZIP_WEB_FILES}" "${ZIP_DESKTOP}"; do
   printf ' - %s\n' "${artifact}"
 done
