@@ -171,11 +171,23 @@ function prepareBaseAssets() {
     "-Dorg.gradle.jvmargs=-Xmx4096m -Xss4m -XX:MaxMetaspaceSize=768m -XX:+UseG1GC"
   ]);
   const packed = path.join(repo, "target_lwjgl_desktop", "build", "epk", "assets.epk");
-  const hosted = path.join(repo, "target_teavm", "build", "web", "assets.epk");
+  const hostedDir = path.join(repo, "target_teavm", "build", "web");
+  const hosted = path.join(hostedDir, "assets.epk");
   if (!fs.existsSync(packed)) fail("buildAssetsEPK completed without producing assets.epk");
-  fs.mkdirSync(path.dirname(hosted), { recursive: true });
+  fs.mkdirSync(hostedDir, { recursive: true });
   fs.copyFileSync(packed, hosted);
   console.log(`[single-html] Installed source-matched assets.epk (${fs.statSync(hosted).size.toLocaleString()} bytes)`);
+
+  for (const name of ["sounds.epk", "music.epk"]) {
+    const source = path.join(repo, "game", name);
+    const destination = path.join(hostedDir, name);
+    if (!fs.existsSync(source)) fail(`missing required audio archive: ${source}`);
+    if (fs.readFileSync(source).subarray(0, 8).toString("latin1") !== "EAGPKG$$") {
+      fail(`invalid EPK archive header: ${source}`);
+    }
+    fs.copyFileSync(source, destination);
+    console.log(`[single-html] Installed ${name} (${fs.statSync(destination).size.toLocaleString()} bytes)`);
+  }
 }
 
 function compressedWasm(name, bytes) {
