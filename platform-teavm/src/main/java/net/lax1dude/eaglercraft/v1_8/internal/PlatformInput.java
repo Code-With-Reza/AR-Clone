@@ -1419,12 +1419,15 @@ public class PlatformInput {
 		}
 		vsyncPrearmed = true;
 		final boolean[] completed = new boolean[] { false };
-		Window.requestAnimationFrame((d) -> {
+		net.lax1dude.eaglercraft.v1_8.internal.webgl2.WebXRController.FrameCallback frameCallback = (d) -> {
 			if(!completed[0]) {
 				completed[0] = true;
 				completeRequestAnimationFrame();
 			}
-		});
+		};
+		if(!net.lax1dude.eaglercraft.v1_8.internal.webgl2.WebXRController.requestXRFrame(frameCallback)) {
+			Window.requestAnimationFrame(frameCallback::onFrame);
+		}
 		vsyncTimeout = Window.setTimeout(() -> {
 			if(!completed[0]) {
 				completed[0] = true;

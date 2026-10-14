@@ -275,7 +275,13 @@ public class SkyRenderer implements AutoCloseable {
             }
          } else {
             EnvironmentAttributeProbe attributeProbe = camera.attributeProbe();
-            state.sunAngle = attributeProbe.getValue(EnvironmentAttributes.SUN_ANGLE, partialTicks) * (float) (Math.PI / 180.0);
+            float sunAngle = attributeProbe.getValue(EnvironmentAttributes.SUN_ANGLE, partialTicks);
+            net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.WebARBridge arBridge =
+               net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge;
+            if (arBridge != null && arBridge.isActive()) {
+               sunAngle += arBridge.sunAngleOffset();
+            }
+            state.sunAngle = sunAngle * (float) (Math.PI / 180.0);
             state.moonAngle = attributeProbe.getValue(EnvironmentAttributes.MOON_ANGLE, partialTicks) * (float) (Math.PI / 180.0);
             state.starAngle = attributeProbe.getValue(EnvironmentAttributes.STAR_ANGLE, partialTicks) * (float) (Math.PI / 180.0);
             state.rainBrightness = 1.0F - level.getRainLevel(partialTicks);

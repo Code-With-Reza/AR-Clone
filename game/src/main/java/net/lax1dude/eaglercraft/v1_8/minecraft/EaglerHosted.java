@@ -103,6 +103,19 @@ public class EaglerHosted {
 	public static Runnable webToggleFullscreen = null;
 	public static java.util.function.BooleanSupplier webIsFullscreen = null;
 
+	public interface WebARBridge {
+		int viewCount();
+		void selectView(int viewIndex);
+		void applyView(int viewIndex, net.minecraft.client.renderer.state.level.CameraRenderState cameraState,
+				net.minecraft.client.renderer.state.WindowRenderState windowState);
+		boolean isActive();
+		boolean isPassthroughMode();
+		float sunAngleOffset();
+		float sunIntensity();
+	}
+
+	public static WebARBridge webARBridge = null;
+
 	/**
 	 * Browser HTTP download seam. The TeaVM JDK URLConnection implementation is a
 	 * link-only stub, so hosted callers must fetch bytes through PlatformRuntime.

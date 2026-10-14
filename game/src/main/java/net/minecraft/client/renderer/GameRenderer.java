@@ -498,7 +498,11 @@ public class GameRenderer implements AutoCloseable, TrackedWaypoint.Projector {
       this.lighting().setupFor(Lighting.Entry.ITEMS_3D);
       this.useUiLightmap = true;
       profiler.push("gui");
-      this.guiRenderer.render();
+      net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.WebARBridge arBridge =
+         net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge;
+      if (arBridge == null || !arBridge.isActive() || !arBridge.isPassthroughMode()) {
+         this.guiRenderer.render();
+      }
       this.guiRenderer.endFrame();
       profiler.pop();
       this.useUiLightmap = false;
@@ -628,7 +632,10 @@ public class GameRenderer implements AutoCloseable, TrackedWaypoint.Projector {
       float cameraEntityPartialTicks = this.mainCamera.getCameraEntityPartialTicks(deltaTracker);
       LocalPlayer player = this.minecraft.player;
       ProfilerFiller profiler = Profiler.get();
-      boolean renderOutline = this.shouldRenderBlockOutline();
+      boolean renderOutline = this.shouldRenderBlockOutline()
+         && (net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge == null
+         || !net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isActive()
+         || !net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isPassthroughMode());
       OptionsRenderState optionsState = this.gameRenderState.optionsRenderState;
       CameraRenderState cameraState = this.gameRenderState.levelRenderState.cameraRenderState;
       Matrix4fc modelViewMatrix = cameraState.viewRotationMatrix;
@@ -661,9 +668,13 @@ public class GameRenderer implements AutoCloseable, TrackedWaypoint.Projector {
       GpuBufferSlice terrainFog = this.fogRenderer.getBuffer(FogRenderer.FogMode.WORLD);
       profiler.popPush("level");
       boolean shouldCreateBossFog = this.minecraft.gui.hud.getBossOverlay().shouldCreateWorldFog();
+      boolean passthroughMode = net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge != null
+         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isActive()
+         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isPassthroughMode();
       this.minecraft
          .levelRenderer
-         .render(this.resourcePool, deltaTracker, renderOutline, cameraState, modelViewMatrix, terrainFog, cameraState.fogData.color, !shouldCreateBossFog);
+         .render(this.resourcePool, deltaTracker, renderOutline, cameraState, modelViewMatrix, terrainFog, cameraState.fogData.color,
+            !shouldCreateBossFog && !passthroughMode);
       if (this.minecraft.options.eaglerOptimizedShader().get()) {
          profiler.popPush("eaglerOptimizedShader");
          this.processEaglerOptimizedShader();
@@ -678,21 +689,24 @@ public class GameRenderer implements AutoCloseable, TrackedWaypoint.Projector {
          .setupPerspective(0.05F, 100.0F, cameraState.hudFov, this.gameRenderState.windowRenderState.width, this.gameRenderState.windowRenderState.height);
       RenderSystem.setProjectionMatrix(this.hud3dProjectionMatrixBuffer.getBuffer(this.hudProjection), ProjectionType.PERSPECTIVE);
       RenderSystem.getDevice().createCommandEncoder().clearDepthTexture(this.mainRenderTarget.getDepthTexture(), 0.0);
-      this.renderItemInHand(cameraState, cameraEntityPartialTicks, modelViewMatrix);
-      profiler.popPush("screenEffects");
-      this.screenEffectRenderer
-         .submit(
-            optionsState.cameraType.isFirstPerson(),
-            isSleeping,
-            worldPartialTicks,
-            this.handAndScreenSubmitNodeStorage,
-            this.gameRenderState.guiRenderState.isHudHidden
-         );
-      this.featureRenderDispatcher.renderAllFeatures(this.handAndScreenSubmitNodeStorage);
+      if (!passthroughMode) {
+         this.renderItemInHand(cameraState, cameraEntityPartialTicks, modelViewMatrix);
+         profiler.popPush("screenEffects");
+         this.screenEffectRenderer
+            .submit(
+               optionsState.cameraType.isFirstPerson(),
+               isSleeping,
+               worldPartialTicks,
+               this.handAndScreenSubmitNodeStorage,
+               this.gameRenderState.guiRenderState.isHudHidden
+            );
+         this.featureRenderDispatcher.renderAllFeatures(this.handAndScreenSubmitNodeStorage);
+      }
       profiler.pop();
       RenderSystem.setShaderFog(this.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
       if (this.gameRenderState.levelRenderState.render3dCrosshair
          && optionsState.cameraType.isFirstPerson()
+         && !passthroughMode
          && !this.gameRenderState.guiRenderState.isHudHidden) {
          this.debugCrosshairRenderer.render(cameraState, this.gameRenderState.windowRenderState.guiScale);
       }

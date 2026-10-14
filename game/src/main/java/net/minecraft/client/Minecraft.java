@@ -1466,22 +1466,35 @@ public class Minecraft extends ReentrantBlockableEventLoop<Runnable> implements 
             profiler.popPush("gpuAsync");
             RenderSystem.executePendingTasks();
             profiler.pop();
-            this.gameRenderer.render(this.deltaTracker, advanceGameTime);
+            net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.WebARBridge arBridge =
+                  net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge;
+            int xrViewCount = arBridge != null && this.windowSurface.isAcquired() ? arBridge.viewCount() : 0;
+            int renderViewCount = Math.max(1, xrViewCount);
+            for (int viewIndex = 0; viewIndex < renderViewCount; ++viewIndex) {
+               if (xrViewCount > 0) {
+                  arBridge.selectView(viewIndex);
+                  arBridge.applyView(viewIndex, this.gameRenderer.gameRenderState().levelRenderState.cameraRenderState,
+                        this.gameRenderer.gameRenderState().windowRenderState);
+               }
+               this.gameRenderer.render(this.deltaTracker, advanceGameTime);
+               if (this.windowSurface.isAcquired()) {
+                  GpuTextureView colorTexture = this.gameRenderer.mainRenderTarget().getColorTextureView();
+                  if (colorTexture == null) {
+                     throw new IllegalStateException("Can't blit to screen, color texture doesn't exist yet");
+                  }
+
+                  this.windowSurface.blitFromTexture(RenderSystem.getDevice().createCommandEncoder(), colorTexture);
+               }
+            }
+            if (xrViewCount > 0) {
+               arBridge.selectView(0);
+            }
          }
 
          long eaglerPresentStarted = eaglerPerfEnabled ? Util.getNanos() : 0L;
          long eaglerRenderNanos = eaglerPerfEnabled ? eaglerPresentStarted - eaglerRenderStarted : 0L;
 
          profiler.push("present");
-         if (this.windowSurface.isAcquired()) {
-            GpuTextureView colorTexture = this.gameRenderer.mainRenderTarget().getColorTextureView();
-            if (colorTexture == null) {
-               throw new IllegalStateException("Can't blit to screen, color texture doesn't exist yet");
-            }
-
-            this.windowSurface.blitFromTexture(RenderSystem.getDevice().createCommandEncoder(), colorTexture);
-         }
-
          this.frameTimeNs = Util.getNanos() - renderStartTimer;
          if (recordGpuUtilization) {
             this.timerQuery.endProfile();

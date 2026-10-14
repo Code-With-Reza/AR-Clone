@@ -129,6 +129,19 @@ The workflow does the following:
 - packages the outputs into multiple ZIPs
 - uploads them to a GitHub Release
 
+### Publish only the web-files ZIP
+
+Run the **Web files release** workflow manually to build and publish just the
+multi-file Wasm-GC website. By default it creates or updates the
+`web-files-v26.2.0` release; choose an existing release tag to attach the ZIP to
+that release instead. It includes the optional `music.epk` and its compressed
+copies alongside the web client, workers, assets and sounds.
+
+The precise TeaVM linker needs a GitHub larger runner. The workflow defaults to
+the `ubuntu-24.04-16core` runner label; configure the repository variable
+`WEB_BUILD_RUNNER` to use another large or self-hosted runner. Access to GitHub
+larger runners depends on the repository owner's plan and runner configuration.
+
 ### Audio sources and file layout
 
 The sound and music EPKs are checked-in build inputs in the `game/` directory. The standalone build stages them into the web output before assembling the browser client:

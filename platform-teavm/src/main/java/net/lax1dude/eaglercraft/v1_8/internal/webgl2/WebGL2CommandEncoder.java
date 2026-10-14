@@ -474,8 +474,15 @@ public class WebGL2CommandEncoder implements CommandEncoderBackend, AutoCloseabl
 		this.ensurePresentPipeline();
 		WebGL2Texture srcTex = ((WebGL2TextureView) textureView).texture();
 
-		this.gl.bindFramebuffer(WebGL2Const.GL_FRAMEBUFFER, null);
-		this.gl.viewport(0, 0, swapchainWidth, swapchainHeight);
+		int xrViewCount = WebXRController.getViewCount();
+		boolean presentingToXR = WebXRController.isSessionActive() && xrViewCount > 0;
+		if (presentingToXR) {
+			this.gl.bindFramebuffer(WebGL2Const.GL_FRAMEBUFFER,
+					(org.teavm.jso.webgl.WebGLFramebuffer) WebXRController.getFramebuffer());
+		} else {
+			this.gl.bindFramebuffer(WebGL2Const.GL_FRAMEBUFFER, null);
+			this.gl.viewport(0, 0, swapchainWidth, swapchainHeight);
+		}
 		this.gl.disable(WebGL2Const.GL_SCISSOR_TEST);
 		this.gl.disable(WebGL2Const.GL_DEPTH_TEST);
 		this.gl.disable(WebGL2Const.GL_BLEND);
@@ -499,7 +506,17 @@ public class WebGL2CommandEncoder implements CommandEncoderBackend, AutoCloseabl
 			this.gl.texParameteri(WebGL2Const.GL_TEXTURE_2D, WebGL2Const.GL_TEXTURE_WRAP_T, WebGL2Const.GL_CLAMP_TO_EDGE);
 			this.gl.uniform1i(presentTexLoc, 0);
 			this.gl.bindVertexArray(presentVao);
-			this.gl.drawArrays(WebGL2Const.GL_TRIANGLES, 0, 3);
+			if (presentingToXR) {
+				int viewIndex = WebXRController.currentViewIndex();
+				this.gl.viewport(WebXRController.getViewportX(viewIndex), WebXRController.getViewportY(viewIndex),
+						WebXRController.getViewportWidth(viewIndex), WebXRController.getViewportHeight(viewIndex));
+				this.gl.drawArrays(WebGL2Const.GL_TRIANGLES, 0, 3);
+				if (WebXRController.isGroundDetectionEnabled()) {
+					WebXRController.drawGroundMarker(this.gl);
+				}
+			} else {
+				this.gl.drawArrays(WebGL2Const.GL_TRIANGLES, 0, 3);
+			}
 			this.gl.bindVertexArray(null);
 			// present just bound presentProgram + presentVao via untracked GL calls. Invalidate the
 			// encoder's cached program/VAO so the next pass's first draw re-binds its own program.

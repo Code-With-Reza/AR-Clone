@@ -227,6 +227,7 @@ public class PlatformRuntime {
 		canvas.setHeight(sh);
 
 		parent.appendChild(canvas);
+		net.lax1dude.eaglercraft.v1_8.internal.webgl2.WebXRController.install(parent, canvas);
 
 		try {
 			win.addEventListener("message", windowMessageListener = new EventListener<MessageEvent>() {
@@ -334,7 +335,7 @@ public class PlatformRuntime {
 	 * 3.3a; backend selection + WebGLBackBuffer are 3.3b.
 	 */
 	@JSBody(params = { "canvas" }, script = "try { return canvas.getContext(\"webgl2\", { antialias: false, depth: true, "
-			+ "alpha: false, powerPreference: \"high-performance\", premultipliedAlpha: false, "
+			+ "alpha: true, powerPreference: \"high-performance\", premultipliedAlpha: false, "
 			+ "preserveDrawingBuffer: false, stencil: false }); } catch(e) { return null; }")
 	private static native JSObject getWebGL2Context0(HTMLCanvasElement canvas);
 

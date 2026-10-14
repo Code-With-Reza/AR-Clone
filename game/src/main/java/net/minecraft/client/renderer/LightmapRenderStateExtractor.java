@@ -53,6 +53,11 @@ public class LightmapRenderStateExtractor {
             renderState.blockFactor = this.blockLightFlicker + 1.4F;
             renderState.blockLightTint = ARGB.vector3fFromRGB24(camera.attributeProbe().getValue(EnvironmentAttributes.BLOCK_LIGHT_TINT, partialTicks));
             renderState.skyFactor = camera.attributeProbe().getValue(EnvironmentAttributes.SKY_LIGHT_FACTOR, partialTicks);
+            net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.WebARBridge arBridge =
+               net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge;
+            if (arBridge != null && arBridge.isActive()) {
+               renderState.skyFactor *= arBridge.sunIntensity();
+            }
             renderState.skyLightColor = ARGB.vector3fFromRGB24(camera.attributeProbe().getValue(EnvironmentAttributes.SKY_LIGHT_COLOR, partialTicks));
             EndFlashState endFlashState = level.endFlashState();
             if (endFlashState != null && !this.minecraft.options.hideLightningFlash().get()) {

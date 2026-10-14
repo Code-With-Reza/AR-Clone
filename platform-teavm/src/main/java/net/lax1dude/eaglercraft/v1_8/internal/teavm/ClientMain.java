@@ -401,6 +401,8 @@ public class ClientMain {
 			}
 			net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webAssetMapSupplier =
 					PlatformRuntime::getAssetsMapTeaVM;
+				net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge =
+						net.lax1dude.eaglercraft.v1_8.internal.webgl2.WebXRController.INSTANCE;
 			net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webToggleFullscreen =
 					net.lax1dude.eaglercraft.v1_8.internal.PlatformInput::toggleFullscreen;
 			net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webIsFullscreen =

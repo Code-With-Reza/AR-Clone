@@ -253,7 +253,10 @@ public class LevelRenderer implements AutoCloseable {
       }
 
       CloudStatus cloudStatus = this.optionsRenderState.cloudStatus;
-      if (cloudStatus != CloudStatus.OFF && ARGB.alpha(this.levelRenderState.cloudColor) > 0) {
+      boolean passthroughMode = net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge != null
+         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isActive()
+         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isPassthroughMode();
+      if (!passthroughMode && cloudStatus != CloudStatus.OFF && ARGB.alpha(this.levelRenderState.cloudColor) > 0) {
          this.addCloudsPass(
             frame,
             cloudStatus,
@@ -266,7 +269,9 @@ public class LevelRenderer implements AutoCloseable {
          );
       }
 
-      this.addWeatherPass(frame, terrainFog);
+      if (!passthroughMode) {
+         this.addWeatherPass(frame, terrainFog);
+      }
       if (transparencyChain != null) {
          transparencyChain.addToFrame(frame, screenWidth, screenHeight, this.targets);
       }
@@ -349,7 +354,11 @@ public class LevelRenderer implements AutoCloseable {
       levelRenderState.blockEntityRenderStates.clear();
       this.submitBlockDestroyAnimation(poseStack, submitNodeCollector, levelRenderState);
       levelRenderState.blockBreakingRenderStates.clear();
-      levelRenderState.particlesRenderState.submit(submitNodeCollector, levelRenderState.cameraRenderState);
+      if (net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge == null
+         || !net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isActive()
+         || !net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isPassthroughMode()) {
+         levelRenderState.particlesRenderState.submit(submitNodeCollector, levelRenderState.cameraRenderState);
+      }
       if (renderOutline) {
          this.submitBlockOutline(poseStack, this.submitNodeStorage, levelRenderState);
       }
