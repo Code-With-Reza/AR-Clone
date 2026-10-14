@@ -1,0 +1,127 @@
+name: Web files release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch, tag, or commit in Code-With-Reza/GGWP-26.2 containing WebXR support"
+        required: true
+        default: main
+        type: string
+      tag_name:
+        description: "Release tag to create or update in this repository"
+        required: true
+        default: web-files-v26.2.0
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    # The precise TeaVM linker needs a large runner. Configure WEB_BUILD_RUNNER
+    # to another available large or self-hosted runner label if needed.
+    runs-on: ${{ vars.WEB_BUILD_RUNNER || 'ubuntu-24.04-16core' }}
+    timeout-minutes: 240
+    defaults:
+      run:
+        working-directory: build-source
+    env:
+      EAGLER_BUILD_CAP_MIB: "13312"
+      EAGLER_LINK_HEAP_MIB: "12288"
+
+    steps:
+      - name: Check out release repository
+        uses: actions/checkout@v4
+
+      - name: Check out game source
+        uses: actions/checkout@v4
+        with:
+          repository: Code-With-Reza/GGWP-26.2
+          ref: ${{ inputs.source_ref }}
+          path: build-source
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+          cache-dependency-path: build-source/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: build-source/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Verify WebXR source and build web output
+        run: |
+          if ! grep -q "WebXRController" platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/PlatformRuntime.java ||
+             ! grep -q "immersive-ar" platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/webgl2/WebXRController.java; then
+            echo "The selected source_ref does not contain the WebXR implementation. Push the WebXR source to Code-With-Reza/GGWP-26.2 and select that ref." >&2
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/web-files-build"
+          node wasm-toolchain/build-single-html.js \
+            --output "$RUNNER_TEMP/web-files-build/not-published.html" \
+            --music-pack-output "$RUNNER_TEMP/web-files-build/not-published-music.zip"
+
+      - name: Add and compress the optional music archive
+        run: |
+          web_dir="target_teavm_wasm_gc/build/web"
+          cp game/music.epk "$web_dir/music.epk"
+          node wasm-toolchain/precompress-web.js "$web_dir"
+
+      - name: Package and validate web files
+        id: package
+        env:
+          INPUT_TAG_NAME: ${{ inputs.tag_name }}
+        run: |
+          tag_name="$INPUT_TAG_NAME"
+          if [[ ! "$tag_name" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Invalid release tag: $tag_name" >&2
+            exit 1
+          fi
+          safe_tag="${tag_name//\//-}"
+          archive="$GITHUB_WORKSPACE/releases/eaglercraft-26.2-web-files-${safe_tag}.zip"
+          mkdir -p "$GITHUB_WORKSPACE/releases"
+          (
+            cd target_teavm_wasm_gc/build/web
+            zip -qr "$archive" .
+          )
+          for required in index.html classes.wasm mesh-worker.wasm server-worker.wasm \
+              classes.wasm-runtime.js assets.epk sounds.epk music.epk music.epk.br music.epk.gz; do
+            unzip -Z1 "$archive" | grep -Fxq "$required" || {
+              echo "Web archive is missing $required" >&2
+              exit 1
+            }
+          done
+          echo "tag=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Publish ZIP to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Eaglercraft 26.2 web files ${{ steps.package.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          overwrite_files: true
+          files: ${{ steps.package.outputs.archive }}
+
+      - name: Upload ZIP as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eaglercraft-26.2-web-files
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
