@@ -68,12 +68,23 @@ jobs:
         run: npm.cmd ci --no-fund --no-audit
 
       - name: Verify WebXR source and build web output
+        env:
+          INPUT_SOURCE_REF: ${{ inputs.source_ref }}
         run: |
+          $sourceCommit = (git rev-parse HEAD).Trim()
+          Write-Host "Building Code-With-Reza/GGWP-26.2 ref '$env:INPUT_SOURCE_REF' at commit '$sourceCommit'"
           $platformRuntime = "platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/PlatformRuntime.java"
           $webXrController = "platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/webgl2/WebXRController.java"
-          if (!(Select-String -Path $platformRuntime -Pattern "WebXRController" -Quiet) -or
-              !(Select-String -Path $webXrController -Pattern "immersive-ar" -Quiet)) {
-            throw "The selected source_ref does not contain the WebXR implementation. Push the WebXR source to Code-With-Reza/GGWP-26.2 and select that ref."
+          $missingWebXrSource = @()
+          if (!(Test-Path $platformRuntime) -or !(Select-String -Path $platformRuntime -Pattern "WebXRController" -Quiet)) {
+            $missingWebXrSource += $platformRuntime
+          }
+          if (!(Test-Path $webXrController) -or !(Select-String -Path $webXrController -Pattern "immersive-ar" -Quiet)) {
+            $missingWebXrSource += $webXrController
+          }
+          if ($missingWebXrSource.Count -gt 0) {
+            $missingFiles = $missingWebXrSource -join ", "
+            throw "Ref '$env:INPUT_SOURCE_REF' ($sourceCommit) in Code-With-Reza/GGWP-26.2 is missing WebXR source: $missingFiles. Push the WebXR changes to that repository, then rerun using the pushed branch, tag, or commit."
           }
           New-Item -ItemType Directory -Path "wasm-toolchain/generated" -Force | Out-Null
           node.exe wasm-toolchain/build-single-html.js `
