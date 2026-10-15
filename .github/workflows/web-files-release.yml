@@ -31,9 +31,6 @@ jobs:
       JAVA_HOME: 'C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot'
 
     steps:
-      - name: Check out release repository
-        uses: actions/checkout@v4
-
       - name: Check out game source
         uses: actions/checkout@v4
         with:
