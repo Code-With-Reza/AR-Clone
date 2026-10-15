@@ -83,7 +83,7 @@ function run(command, args, options = {}) {
 function gradlePaths(task, properties = []) {
   const output = run("./gradlew", [task, "--console=plain", "--no-daemon", "--max-workers=1", ...properties]);
   const paths = output.split(/\r?\n/).map((line) => line.trim())
-      .filter((line) => line.startsWith("/") && fs.existsSync(line));
+      .filter((line) => path.isAbsolute(line) && fs.existsSync(line));
   if (paths.length === 0) {
     throw new Error(`No classpath entries were printed by ${task}`);
   }
