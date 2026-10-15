@@ -3,10 +3,15 @@ name: Web files release
 on:
   workflow_dispatch:
     inputs:
-      source_ref:
-        description: "Branch, tag, or commit in Code-With-Reza/GGWP-26.2 containing WebXR support"
+      source_repository:
+        description: "Repository containing the WebXR-enabled game source"
         required: true
-        default: main
+        default: Code-With-Reza/AR-Clone
+        type: string
+      source_ref:
+        description: "Branch, tag, or commit in source_repository containing WebXR support"
+        required: true
+        default: webar
         type: string
       tag_name:
         description: "Release tag to create or update in this repository"
@@ -34,7 +39,7 @@ jobs:
       - name: Check out game source
         uses: actions/checkout@v4
         with:
-          repository: Code-With-Reza/GGWP-26.2
+          repository: ${{ inputs.source_repository }}
           ref: ${{ inputs.source_ref }}
           path: build-source
 
@@ -66,10 +71,11 @@ jobs:
 
       - name: Verify WebXR source and build web output
         env:
+          INPUT_SOURCE_REPOSITORY: ${{ inputs.source_repository }}
           INPUT_SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           $sourceCommit = (git rev-parse HEAD).Trim()
-          Write-Host "Building Code-With-Reza/GGWP-26.2 ref '$env:INPUT_SOURCE_REF' at commit '$sourceCommit'"
+          Write-Host "Building '$env:INPUT_SOURCE_REPOSITORY' ref '$env:INPUT_SOURCE_REF' at commit '$sourceCommit'"
           $platformRuntime = "platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/PlatformRuntime.java"
           $webXrController = "platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/webgl2/WebXRController.java"
           $missingWebXrSource = @()
@@ -81,7 +87,7 @@ jobs:
           }
           if ($missingWebXrSource.Count -gt 0) {
             $missingFiles = $missingWebXrSource -join ", "
-            throw "Ref '$env:INPUT_SOURCE_REF' ($sourceCommit) in Code-With-Reza/GGWP-26.2 is missing WebXR source: $missingFiles. Push the WebXR changes to that repository, then rerun using the pushed branch, tag, or commit."
+            throw "Ref '$env:INPUT_SOURCE_REF' ($sourceCommit) in '$env:INPUT_SOURCE_REPOSITORY' is missing WebXR source: $missingFiles. Push the WebXR changes to that repository, then rerun using the pushed branch, tag, or commit."
           }
           New-Item -ItemType Directory -Path "wasm-toolchain/generated" -Force | Out-Null
           node.exe wasm-toolchain/build-single-html.js `

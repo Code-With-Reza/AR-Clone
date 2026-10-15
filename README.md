@@ -13,6 +13,8 @@ at `C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot`. Allow at least
 `.github/workflows/web-files-release.yml` if JDK 25 is installed elsewhere; the
 workflow uses that JDK directly and does not install a second one.
 
-Before triggering the workflow, push the WebXR-enabled game source to
-`Code-With-Reza/GGWP-26.2`. Enter a branch, tag, or commit containing that source
-in the workflow's `source_ref` input.
+The default `source_repository` is `Code-With-Reza/AR-Clone`, and the default
+`source_ref` is `webar`. Push the WebXR-enabled game project from the
+`GGWP-26.2` directory as a branch in `AR-Clone`, then use that branch in
+`source_ref`. You can change `source_repository` if the source branch is hosted
+in another repository.
