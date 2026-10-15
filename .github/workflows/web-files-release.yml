@@ -19,16 +19,16 @@ permissions:
 
 jobs:
   build-and-release:
-    # The precise TeaVM linker needs a large runner. Configure WEB_BUILD_RUNNER
-    # to another available large or self-hosted runner label if needed.
-    runs-on: ${{ vars.WEB_BUILD_RUNNER || 'ubuntu-24.04-16core' }}
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 240
     defaults:
       run:
         working-directory: build-source
+        shell: bash
     env:
       EAGLER_BUILD_CAP_MIB: "13312"
       EAGLER_LINK_HEAP_MIB: "12288"
+      JAVA_HOME: 'C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot'
 
     steps:
       - name: Check out release repository
@@ -41,14 +41,6 @@ jobs:
           ref: ${{ inputs.source_ref }}
           path: build-source
 
-      - name: Set up Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "25"
-          cache: gradle
-          cache-dependency-path: build-source/gradle/wrapper/gradle-wrapper.properties
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -56,11 +48,22 @@ jobs:
           cache: npm
           cache-dependency-path: build-source/package-lock.json
 
+      - name: Use installed Eclipse Adoptium Java 25
+        shell: pwsh
+        run: |
+          $java = Join-Path $env:JAVA_HOME "bin\java.exe"
+          if (!(Test-Path $java)) {
+            throw "Java 25 was not found at $java. Update JAVA_HOME in this workflow to your installed JDK 25 directory."
+          }
+          "$env:JAVA_HOME\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $version = (& $java -version 2>&1 | Out-String)
+          Write-Host $version
+          if ($version -notmatch 'version "25(?:\.|")') {
+            throw "The configured JAVA_HOME must point to JDK 25."
+          }
+
       - name: Install Node dependencies
         run: npm ci --no-fund --no-audit
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
 
       - name: Verify WebXR source and build web output
         run: |
@@ -69,10 +72,10 @@ jobs:
             echo "The selected source_ref does not contain the WebXR implementation. Push the WebXR source to Code-With-Reza/GGWP-26.2 and select that ref." >&2
             exit 1
           fi
-          mkdir -p "$RUNNER_TEMP/web-files-build"
+          mkdir -p wasm-toolchain/generated
           node wasm-toolchain/build-single-html.js \
-            --output "$RUNNER_TEMP/web-files-build/not-published.html" \
-            --music-pack-output "$RUNNER_TEMP/web-files-build/not-published-music.zip"
+            --output wasm-toolchain/generated/not-published.html \
+            --music-pack-output wasm-toolchain/generated/not-published-music.zip
 
       - name: Add and compress the optional music archive
         run: |
@@ -82,30 +85,42 @@ jobs:
 
       - name: Package and validate web files
         id: package
+        shell: pwsh
         env:
           INPUT_TAG_NAME: ${{ inputs.tag_name }}
         run: |
-          tag_name="$INPUT_TAG_NAME"
-          if [[ ! "$tag_name" =~ ^[A-Za-z0-9._/-]+$ ]]; then
-            echo "Invalid release tag: $tag_name" >&2
-            exit 1
-          fi
-          safe_tag="${tag_name//\//-}"
-          archive="$GITHUB_WORKSPACE/releases/eaglercraft-26.2-web-files-${safe_tag}.zip"
-          mkdir -p "$GITHUB_WORKSPACE/releases"
-          (
-            cd target_teavm_wasm_gc/build/web
-            zip -qr "$archive" .
-          )
-          for required in index.html classes.wasm mesh-worker.wasm server-worker.wasm \
-              classes.wasm-runtime.js assets.epk sounds.epk music.epk music.epk.br music.epk.gz; do
-            unzip -Z1 "$archive" | grep -Fxq "$required" || {
-              echo "Web archive is missing $required" >&2
-              exit 1
+          $tagName = $env:INPUT_TAG_NAME
+          if ($tagName -notmatch '^[A-Za-z0-9._/-]+$') {
+            throw "Invalid release tag: $tagName"
+          }
+          $safeTag = $tagName.Replace("/", "-")
+          $releaseDirectory = Join-Path $env:GITHUB_WORKSPACE "releases"
+          $archive = Join-Path $releaseDirectory "eaglercraft-26.2-web-files-$safeTag.zip"
+          $webDirectory = Join-Path $env:GITHUB_WORKSPACE "build-source\target_teavm_wasm_gc\build\web"
+          New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
+          Compress-Archive -Path (Join-Path $webDirectory "*") -DestinationPath $archive -Force
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+          try {
+            $entries = @{}
+            foreach ($entry in $zip.Entries) {
+              $entries[$entry.FullName.Replace("\", "/")] = $true
             }
-          done
-          echo "tag=$tag_name" >> "$GITHUB_OUTPUT"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+            $required = @(
+              "index.html", "classes.wasm", "mesh-worker.wasm", "server-worker.wasm",
+              "classes.wasm-runtime.js", "assets.epk", "sounds.epk", "music.epk",
+              "music.epk.br", "music.epk.gz"
+            )
+            foreach ($file in $required) {
+              if (!$entries.ContainsKey($file)) {
+                throw "Web archive is missing $file"
+              }
+            }
+          } finally {
+            $zip.Dispose()
+          }
+          "tag=$tagName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "archive=$archive" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Publish ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
