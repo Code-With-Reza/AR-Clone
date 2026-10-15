@@ -105,8 +105,11 @@ function run(command, commandArgs, extraEnv = {}) {
     buildLimitMiB,
     command,
     ...commandArgs
-  ], { cwd: repo, stdio: "inherit", env: { ...process.env, ...extraEnv },
-    shell: windowsGradleWrapper });
+  ], {
+    cwd: repo,
+    stdio: "inherit",
+    env: { ...process.env, ...extraEnv }
+  });
   if (result.error) fail(result.error.message);
   if (result.status !== 0) fail(`${command} exited with code ${result.status}`);
 }
