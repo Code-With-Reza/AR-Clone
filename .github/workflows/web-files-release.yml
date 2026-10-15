@@ -24,7 +24,7 @@ jobs:
     defaults:
       run:
         working-directory: build-source
-        shell: bash
+        shell: pwsh
     env:
       EAGLER_BUILD_CAP_MIB: "13312"
       EAGLER_LINK_HEAP_MIB: "12288"
@@ -41,12 +41,14 @@ jobs:
           ref: ${{ inputs.source_ref }}
           path: build-source
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: build-source/package-lock.json
+      - name: Use installed Node.js
+        run: |
+          $nodeVersion = (& node.exe --version).Trim()
+          $npmVersion = (& npm.cmd --version).Trim()
+          Write-Host "Using Node.js $nodeVersion and npm $npmVersion"
+          if ($nodeVersion -notmatch '^v(20|22|24)\.') {
+            throw "Install Node.js 20, 22, or 24 and make sure node.exe is on the runner service PATH."
+          }
 
       - name: Use installed Eclipse Adoptium Java 25
         shell: pwsh
@@ -63,25 +65,26 @@ jobs:
           }
 
       - name: Install Node dependencies
-        run: npm ci --no-fund --no-audit
+        run: npm.cmd ci --no-fund --no-audit
 
       - name: Verify WebXR source and build web output
         run: |
-          if ! grep -q "WebXRController" platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/PlatformRuntime.java ||
-             ! grep -q "immersive-ar" platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/webgl2/WebXRController.java; then
-            echo "The selected source_ref does not contain the WebXR implementation. Push the WebXR source to Code-With-Reza/GGWP-26.2 and select that ref." >&2
-            exit 1
-          fi
-          mkdir -p wasm-toolchain/generated
-          node wasm-toolchain/build-single-html.js \
-            --output wasm-toolchain/generated/not-published.html \
-            --music-pack-output wasm-toolchain/generated/not-published-music.zip
+          $platformRuntime = "platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/PlatformRuntime.java"
+          $webXrController = "platform-teavm/src/main/java/net/lax1dude/eaglercraft/v1_8/internal/webgl2/WebXRController.java"
+          if (!(Select-String -Path $platformRuntime -Pattern "WebXRController" -Quiet) -or
+              !(Select-String -Path $webXrController -Pattern "immersive-ar" -Quiet)) {
+            throw "The selected source_ref does not contain the WebXR implementation. Push the WebXR source to Code-With-Reza/GGWP-26.2 and select that ref."
+          }
+          New-Item -ItemType Directory -Path "wasm-toolchain/generated" -Force | Out-Null
+          node.exe wasm-toolchain/build-single-html.js `
+            --output "wasm-toolchain/generated/not-published.html" `
+            --music-pack-output "wasm-toolchain/generated/not-published-music.zip"
 
       - name: Add and compress the optional music archive
         run: |
-          web_dir="target_teavm_wasm_gc/build/web"
-          cp game/music.epk "$web_dir/music.epk"
-          node wasm-toolchain/precompress-web.js "$web_dir"
+          $webDirectory = "target_teavm_wasm_gc/build/web"
+          Copy-Item "game/music.epk" (Join-Path $webDirectory "music.epk") -Force
+          node.exe wasm-toolchain/precompress-web.js $webDirectory
 
       - name: Package and validate web files
         id: package
