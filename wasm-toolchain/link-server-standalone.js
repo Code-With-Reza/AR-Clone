@@ -60,11 +60,14 @@ function findGradleModuleJar(group, module, version, fileName) {
 }
 
 function run(command, args, options = {}) {
+  const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
+  if (windowsGradleWrapper) command = "gradlew.bat";
   console.log(`[standalone-server-link] ${command} ${args.join(" ")}`);
   const result = childProcess.spawnSync(command, args, {
     cwd: repo,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
+    shell: windowsGradleWrapper,
     ...options,
   });
   if (options.stdio !== "inherit") {

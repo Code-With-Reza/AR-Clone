@@ -95,8 +95,13 @@ function snapshotPaths(entries) {
 }
 
 function resolveCommand(command) {
-  const candidates = command.includes(path.sep) ? [path.resolve(command)]
-    : (process.env.PATH || "").split(path.delimiter).map(dir => path.resolve(dir || ".", command));
+  const extensions = process.platform === "win32" ? [".exe", ".cmd", ".bat"] : [""];
+  const commandNames = path.extname(command) ? [command]
+    : extensions.map(extension => `${command}${extension}`);
+  const candidates = command.includes(path.sep)
+    ? commandNames.map(name => path.resolve(name))
+    : (process.env.PATH || "").split(path.delimiter)
+      .flatMap(dir => commandNames.map(name => path.resolve(dir || ".", name)));
   for (const candidate of candidates) {
     try {
       fs.accessSync(candidate, fs.constants.X_OK);
@@ -112,7 +117,7 @@ function toolchainInputs(commands) {
     const executable = resolveCommand(command);
     files.push(executable);
     const real = fs.realpathSync(executable);
-    if (["java", "javac", "jar", "jdeps"].includes(path.basename(real))) {
+    if (["java", "javac", "jar", "jdeps"].includes(path.basename(real, path.extname(real)))) {
       const home = path.dirname(path.dirname(real));
       // Modules, native libraries and configuration may alter compiler behavior.
       // Include executable launchers too, including javac's implementation JDK.

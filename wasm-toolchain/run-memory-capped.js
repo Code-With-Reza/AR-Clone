@@ -2,7 +2,7 @@
 "use strict";
 
 const fs = require("node:fs");
-const { spawn } = require("node:child_process");
+const { execFileSync, spawn } = require("node:child_process");
 
 const DEFAULT_LIMIT_MIB = 13824;
 const POLL_INTERVAL_MS = 100;
@@ -34,7 +34,7 @@ if (!Number.isFinite(limitMiB) || limitMiB <= 0 || argv.length === 0 ||
   process.exit(2);
 }
 
-function readProcess(pid, includePss) {
+function readLinuxProcess(pid, includePss) {
   try {
     const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
     const closeParen = stat.lastIndexOf(")");
@@ -58,10 +58,42 @@ function readProcess(pid, includePss) {
 }
 
 function processTreeMemory(rootPid, includePss) {
+  if (process.platform === "win32") {
+    const result = execFileSync("powershell.exe", [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,WorkingSetSize | ConvertTo-Json -Compress"
+    ], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024, timeout: 15000 });
+    const snapshot = JSON.parse(result);
+    const processes = (Array.isArray(snapshot) ? snapshot : [snapshot]).map(process => ({
+      pid: Number(process.ProcessId),
+      ppid: Number(process.ParentProcessId),
+      rssBytes: Number(process.WorkingSetSize)
+    }));
+    const descendants = new Set([rootPid]);
+    let changed;
+    do {
+      changed = false;
+      for (const process of processes) {
+        if (!descendants.has(process.pid) && descendants.has(process.ppid)) {
+          descendants.add(process.pid);
+          changed = true;
+        }
+      }
+    } while (changed);
+
+    let rssBytes = 0;
+    for (const process of processes) {
+      if (descendants.has(process.pid)) rssBytes += process.rssBytes;
+    }
+    return { rssBytes, pssBytes: 0 };
+  }
+
   const processes = [];
   for (const name of fs.readdirSync("/proc")) {
     if (!/^\d+$/.test(name)) continue;
-    const process = readProcess(Number(name), includePss);
+    const process = readLinuxProcess(Number(name), includePss);
     if (process) processes.push(process);
   }
 
@@ -89,6 +121,12 @@ function processTreeMemory(rootPid, includePss) {
 }
 
 function killGroup(pid, signal) {
+  if (process.platform === "win32") {
+    execFileSync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore"
+    });
+    return;
+  }
   try {
     process.kill(-pid, signal);
   } catch (err) {
@@ -96,8 +134,14 @@ function killGroup(pid, signal) {
   }
 }
 
+const windowsGradleWrapper = process.platform === "win32" && argv[0] === "./gradlew";
+if (windowsGradleWrapper) argv[0] = "gradlew.bat";
 const command = argv[0];
 const commandArgs = argv.slice(1);
+if (process.platform === "win32" && memoryMetric === "pss") {
+  console.error("[memory-cap] PSS monitoring is unavailable on Windows; use RSS monitoring");
+  process.exit(2);
+}
 const limitBytes = limitMiB * 1024 * 1024;
 const startedAt = process.hrtime.bigint();
 let peakBytes = 0;
@@ -108,7 +152,8 @@ let memoryExceeded = false;
 console.log(`[memory-cap] limit=${limitMiB} MiB metric=${memoryMetric} command=${command}`);
 const child = spawn(command, commandArgs, {
   cwd: process.cwd(),
-  detached: true,
+  detached: process.platform !== "win32",
+  shell: windowsGradleWrapper || (process.platform === "win32" && command.toLowerCase().endsWith(".bat")),
   stdio: logFile ? ["inherit", "pipe", "pipe"] : "inherit"
 });
 
@@ -127,6 +172,7 @@ if (logFile) {
 
 function forwardTermination(signal) {
   killGroup(child.pid, signal);
+  if (process.platform === "win32") return;
   setTimeout(() => killGroup(child.pid, "SIGKILL"), KILL_GRACE_MS).unref();
 }
 
@@ -134,8 +180,22 @@ process.once("SIGINT", () => forwardTermination("SIGINT"));
 process.once("SIGTERM", () => forwardTermination("SIGTERM"));
 process.once("SIGHUP", () => forwardTermination("SIGHUP"));
 
+let monitorFailure = null;
 const monitor = setInterval(() => {
-  const memory = processTreeMemory(child.pid, memoryMetric === "pss");
+  let memory;
+  try {
+    memory = processTreeMemory(child.pid, memoryMetric === "pss");
+  } catch (error) {
+    if (monitorFailure) return;
+    monitorFailure = error;
+    console.error(`[memory-cap] failed to inspect build process memory: ${error.message}`);
+    try {
+      killGroup(child.pid, "SIGTERM");
+    } catch (killError) {
+      console.error(`[memory-cap] failed to stop build after monitoring error: ${killError.message}`);
+    }
+    return;
+  }
   const measuredBytes = memoryMetric === "pss" ? memory.pssBytes : memory.rssBytes;
   peakBytes = Math.max(peakBytes, measuredBytes);
   peakRssBytes = Math.max(peakRssBytes, memory.rssBytes);
@@ -146,10 +206,17 @@ const monitor = setInterval(() => {
       `[memory-cap] build tree reached ${(measuredBytes / 1048576).toFixed(0)} MiB ${memoryMetric}; ` +
       `terminating it because it exceeded the configured ${limitMiB} MiB ${memoryMetric} limit`
     );
-    killGroup(child.pid, "SIGTERM");
-    setTimeout(() => killGroup(child.pid, "SIGKILL"), KILL_GRACE_MS).unref();
+    try {
+      killGroup(child.pid, "SIGTERM");
+      if (process.platform !== "win32") {
+        setTimeout(() => killGroup(child.pid, "SIGKILL"), KILL_GRACE_MS).unref();
+      }
+    } catch (error) {
+      monitorFailure = error;
+      console.error(`[memory-cap] failed to stop build after memory limit was exceeded: ${error.message}`);
+    }
   }
-}, memoryMetric === "pss" ? 1000 : POLL_INTERVAL_MS);
+}, process.platform === "win32" || memoryMetric === "pss" ? 1000 : POLL_INTERVAL_MS);
 
 child.on("error", (err) => {
   clearInterval(monitor);
@@ -169,6 +236,7 @@ child.on("exit", (code, signal) => {
   }
   console.log(`[memory-cap] wall time=${elapsedSeconds.toFixed(1)} s`);
   if (memoryExceeded) process.exit(137);
+  if (monitorFailure) process.exit(1);
   if (signal) {
     console.error(`[memory-cap] ${command} exited from signal ${signal}`);
     process.exit(1);

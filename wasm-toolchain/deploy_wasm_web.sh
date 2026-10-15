@@ -33,10 +33,10 @@ cp "$SRC/worker-bootstrap.js" "$WEB/worker-bootstrap.js"
 cp "$REPO/game/src/main/resources/pack.png" "$WEB/favicon.png"
 
 # 2. wasm binary (symlink -> the freshly generated one; the client emits only classes.wasm)
-ln -sf "$GEN/classes.wasm" "$WEB/classes.wasm"
-ln -sf "$MESH_GEN/mesh-worker.wasm" "$WEB/mesh-worker.wasm"
+cp -f "$GEN/classes.wasm" "$WEB/classes.wasm"
+cp -f "$MESH_GEN/mesh-worker.wasm" "$WEB/mesh-worker.wasm"
 if [ "$USE_DEDICATED_SERVER_WASM" = "1" ] && [ -f "$SERVER_GEN/server-worker.wasm" ]; then
-	ln -sf "$SERVER_GEN/server-worker.wasm" "$WEB/server-worker.wasm"
+	cp -f "$SERVER_GEN/server-worker.wasm" "$WEB/server-worker.wasm"
 	SERVER_WORKER_AVAILABLE=true
 else
 	rm -f "$WEB/server-worker.wasm" "$WEB/server-worker.wasm.br" "$WEB/server-worker.wasm.gz"
@@ -96,7 +96,7 @@ cp "$RUNTIME_SRC" "$WEB/classes.wasm-runtime.js"
 #    separately as an optional resource pack and must not delay normal startup.
 rm -f "$WEB/music.epk" "$WEB/music.epk.br" "$WEB/music.epk.gz"
 for e in assets sounds; do
-	if [ -e "$JSWEB/$e.epk" ]; then ln -sf "$JSWEB/$e.epk" "$WEB/$e.epk"; fi
+	if [ -e "$JSWEB/$e.epk" ]; then cp -f "$JSWEB/$e.epk" "$WEB/$e.epk"; fi
 done
 
 # 5. lang (localesURI is only stored at config time, not fetched during boot, but keep it present)

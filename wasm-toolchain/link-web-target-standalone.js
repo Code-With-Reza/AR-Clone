@@ -89,11 +89,14 @@ const installedDirectory = path.join(repo, target.project, "build", "generated",
 const linkLog = path.join(generated, `${targetName}-${analysisMode}-link.log`);
 
 function run(command, args, options = {}) {
+  const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
+  if (windowsGradleWrapper) command = "gradlew.bat";
   console.log(`[standalone-${targetName}-link] ${command} ${args.join(" ")}`);
   const result = childProcess.spawnSync(command, args, {
     cwd: repo,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
+    shell: windowsGradleWrapper,
     ...options,
   });
   if (options.stdio !== "inherit") {
@@ -107,16 +110,23 @@ function run(command, args, options = {}) {
 function installClientRuntime(toolClasspath, destination) {
   const candidates = toolClasspath.filter(file => /teavm-core-0\.13\.1(?:-eagler)?\.jar$/.test(file));
   for (const jar of candidates) {
-    const result = childProcess.spawnSync("unzip", ["-p", jar, WASM_GC_RUNTIME_RESOURCE], {
-      cwd: repo, encoding: null, maxBuffer: 1024 * 1024,
-    });
-    if (result.status !== 0 || !result.stdout) continue;
-    const digest = crypto.createHash("sha256").update(result.stdout).digest("hex");
-    if (result.stdout.length !== WASM_GC_RUNTIME_BYTES || digest !== WASM_GC_RUNTIME_SHA256) continue;
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, result.stdout);
-    console.log(`[standalone-client-link] runtime=${destination} bytes=${result.stdout.length} sha256=${digest} source=${jar}`);
-    return;
+    const extractionDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "eagler-runtime-"));
+    try {
+      const extracted = childProcess.spawnSync("jar", ["xf", jar, WASM_GC_RUNTIME_RESOURCE], {
+        cwd: extractionDirectory, encoding: "utf8",
+      });
+      const runtimeFile = path.join(extractionDirectory, ...WASM_GC_RUNTIME_RESOURCE.split("/"));
+      if (extracted.status !== 0 || !fs.existsSync(runtimeFile)) continue;
+      const runtimeBytes = fs.readFileSync(runtimeFile);
+      const digest = crypto.createHash("sha256").update(runtimeBytes).digest("hex");
+      if (runtimeBytes.length !== WASM_GC_RUNTIME_BYTES || digest !== WASM_GC_RUNTIME_SHA256) continue;
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.writeFileSync(destination, runtimeBytes);
+      console.log(`[standalone-client-link] runtime=${destination} bytes=${runtimeBytes.length} sha256=${digest} source=${jar}`);
+      return;
+    } finally {
+      fs.rmSync(extractionDirectory, { recursive: true, force: true });
+    }
   }
   throw new Error(`Authenticated TeaVM 0.13.1 tool classpath lacks the expected ${WASM_GC_RUNTIME_RESOURCE} (bytes=${WASM_GC_RUNTIME_BYTES}, sha256=${WASM_GC_RUNTIME_SHA256})`);
 }

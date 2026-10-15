@@ -95,6 +95,8 @@ if (!Number.isInteger(buildLimitMiB) || buildLimitMiB < 1024 || buildLimitMiB > 
 }
 
 function run(command, commandArgs, extraEnv = {}) {
+  const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
+  if (windowsGradleWrapper) command = "gradlew.bat";
   console.log(`[single-html] ${command} ${commandArgs.join(" ")}`);
   const capRunner = path.join(repo, "wasm-toolchain", "run-memory-capped.js");
   const result = spawnSync(process.execPath, [
@@ -103,7 +105,8 @@ function run(command, commandArgs, extraEnv = {}) {
     buildLimitMiB,
     command,
     ...commandArgs
-  ], { cwd: repo, stdio: "inherit", env: { ...process.env, ...extraEnv } });
+  ], { cwd: repo, stdio: "inherit", env: { ...process.env, ...extraEnv },
+    shell: windowsGradleWrapper });
   if (result.error) fail(result.error.message);
   if (result.status !== 0) fail(`${command} exited with code ${result.status}`);
 }
