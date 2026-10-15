@@ -15,6 +15,7 @@ const path = require("path");
 const { readStandaloneClasspaths } = require("./standalone-classpaths");
 const { substituteGameJarWithOverlay } = require("./field-overlay-link");
 const { withVerifiedCache, withOperationLock, toolchainInputs, environmentIdentity, cacheMode } = require("./standalone-link-cache");
+const { quoteWindowsShellArguments } = require("./windows-shell-args.js");
 
 const repo = path.resolve(__dirname, "..");
 const generated = path.join(repo, "wasm-toolchain", "generated");
@@ -91,8 +92,9 @@ const linkLog = path.join(generated, `${targetName}-${analysisMode}-link.log`);
 function run(command, args, options = {}) {
   const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
   if (windowsGradleWrapper) command = "gradlew.bat";
+  const commandArgs = windowsGradleWrapper ? quoteWindowsShellArguments(args) : args;
   console.log(`[standalone-${targetName}-link] ${command} ${args.join(" ")}`);
-  const result = childProcess.spawnSync(command, args, {
+  const result = childProcess.spawnSync(command, commandArgs, {
     cwd: repo,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,

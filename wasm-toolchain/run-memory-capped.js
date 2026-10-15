@@ -3,6 +3,7 @@
 
 const fs = require("node:fs");
 const { execFileSync, spawn } = require("node:child_process");
+const { quoteWindowsShellArguments } = require("./windows-shell-args.js");
 
 const DEFAULT_LIMIT_MIB = 13824;
 const POLL_INTERVAL_MS = 100;
@@ -138,6 +139,10 @@ const windowsGradleWrapper = process.platform === "win32" && argv[0] === "./grad
 if (windowsGradleWrapper) argv[0] = "gradlew.bat";
 const command = argv[0];
 const commandArgs = argv.slice(1);
+const windowsBatchCommand = process.platform === "win32" &&
+  (windowsGradleWrapper || command.toLowerCase().endsWith(".bat"));
+const spawnArgs = windowsBatchCommand
+  ? quoteWindowsShellArguments(commandArgs) : commandArgs;
 if (process.platform === "win32" && memoryMetric === "pss") {
   console.error("[memory-cap] PSS monitoring is unavailable on Windows; use RSS monitoring");
   process.exit(2);
@@ -150,10 +155,10 @@ let peakPssBytes = 0;
 let memoryExceeded = false;
 
 console.log(`[memory-cap] limit=${limitMiB} MiB metric=${memoryMetric} command=${command}`);
-const child = spawn(command, commandArgs, {
+const child = spawn(command, spawnArgs, {
   cwd: process.cwd(),
   detached: process.platform !== "win32",
-  shell: windowsGradleWrapper || (process.platform === "win32" && command.toLowerCase().endsWith(".bat")),
+  shell: windowsBatchCommand,
   stdio: logFile ? ["inherit", "pipe", "pipe"] : "inherit"
 });
 

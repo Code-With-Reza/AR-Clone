@@ -8,6 +8,7 @@ const os = require("os");
 const path = require("path");
 const { readStandaloneClasspaths } = require("./standalone-classpaths");
 const { withVerifiedCache, withOperationLock, toolchainInputs, environmentIdentity, cacheMode } = require("./standalone-link-cache");
+const { quoteWindowsShellArguments } = require("./windows-shell-args.js");
 
 const repo = path.resolve(__dirname, "..");
 const diagnostic = process.env.EAGLER_SERVER_DIAGNOSTIC === "1";
@@ -62,8 +63,9 @@ function findGradleModuleJar(group, module, version, fileName) {
 function run(command, args, options = {}) {
   const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
   if (windowsGradleWrapper) command = "gradlew.bat";
+  const commandArgs = windowsGradleWrapper ? quoteWindowsShellArguments(args) : args;
   console.log(`[standalone-server-link] ${command} ${args.join(" ")}`);
-  const result = childProcess.spawnSync(command, args, {
+  const result = childProcess.spawnSync(command, commandArgs, {
     cwd: repo,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
