@@ -97,6 +97,12 @@ if (!Number.isInteger(buildLimitMiB) || buildLimitMiB < 1024 || buildLimitMiB > 
 function run(command, commandArgs, extraEnv = {}) {
   const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
   if (windowsGradleWrapper) command = "gradlew.bat";
+  if (process.platform === "win32" && command === "bash") {
+    command = process.env.EAGLER_BASH || "";
+    if (!command || !fs.existsSync(command)) {
+      fail("Git for Windows Bash was not found; set EAGLER_BASH to the full path of Git's bash.exe");
+    }
+  }
   console.log(`[single-html] ${command} ${commandArgs.join(" ")}`);
   const capRunner = path.join(repo, "wasm-toolchain", "run-memory-capped.js");
   const result = spawnSync(process.execPath, [
