@@ -34,6 +34,7 @@ jobs:
       EAGLER_BUILD_CAP_MIB: "13312"
       EAGLER_LINK_HEAP_MIB: "12288"
       JAVA_HOME: 'C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot'
+      EAGLER_BASH: 'C:\Program Files\Git\bin\bash.exe'
 
     steps:
       - name: Check out game source
@@ -50,6 +51,14 @@ jobs:
           Write-Host "Using Node.js $nodeVersion and npm $npmVersion"
           if ($nodeVersion -notmatch '^v(20|22|24)\.') {
             throw "Install Node.js 20, 22, or 24 and make sure node.exe is on the runner service PATH."
+          }
+          if (!(Test-Path $env:EAGLER_BASH)) {
+            throw "Git Bash was not found at $env:EAGLER_BASH. Update EAGLER_BASH to the Git for Windows bash.exe path."
+          }
+          $bashVersion = (& $env:EAGLER_BASH --version | Select-Object -First 1)
+          Write-Host "Using $bashVersion"
+          if ($bashVersion -notmatch '^GNU bash, version') {
+            throw "EAGLER_BASH must point to GNU Bash from Git for Windows."
           }
 
       - name: Use installed Eclipse Adoptium Java 25
