@@ -1,0 +1,35 @@
+{
+  "journal": {
+    "version": 2,
+    "build": "3f5f817ad3e04fa9",
+    "sessionId": "mvajkct5-mqmxu2ksich",
+    "startedAt": 1792129386713,
+    "heartbeat": 1792129488715,
+    "state": "fatal",
+    "stage": "shell",
+    "url": "http://localhost/",
+    "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 9 Pro Fold) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36",
+    "platform": "Win32",
+    "hardwareConcurrency": 16,
+    "deviceMemory": 16,
+    "telemetry": {
+      "at": 1792129488715,
+      "memory": {
+        "usedJSHeapSize": 22090349,
+        "totalJSHeapSize": 24769521,
+        "jsHeapSizeLimit": 4395630592
+      },
+      "meshWorkers": null,
+      "shaderPack": null,
+      "perfClient": null
+    },
+    "logTail": [
+      "L:[shell] wasm compileStreaming path OK",
+      "L:[shell] dedicated mesh + server Wasm compiled",
+      "W:[shell] compile-once path unavailable (SyntaxError: Function statements require a function name); TeaVM.wasmGC.load fallback (workers disabled)",
+      "E:SHELL_ERR SyntaxError: Function statements require a function name\nSyntaxError: Function statements require a function name\n    at new Function (<anonymous>)\n    at eval (eval at d (http://localhost/classes.wasm-runtime.js?v=3f5f817ad3e04fa9:1:9167), <anonymous>:3:8)\n    at http://localhost/classes.wasm?v=3f5f817ad3e04fa9:wasm-function[179976]:0x5f0356c\n    at http://localhost/classes.wasm?v=3f5f817ad3e04fa9:wasm-function[179983]:0x5f04beb\n    at Object.r [as load] (http://localhost/classes.wasm-runtime.js?v=3f5f817ad3e04fa9:1:11204)\n    at async http://localhost/:523:11"
+    ],
+    "fatalKind": "shell-crash",
+    "error": "SyntaxError: Function statements require a function name\n    at new Function (<anonymous>)\n    at eval (eval at d (http://localhost/classes.wasm-runtime.js?v=3f5f817ad3e04fa9:1:9167), <anonymous>:3:8)\n    at http://localhost/classes.wasm?v=3f5f817ad3e04fa9:wasm-function[179976]:0x5f0356c\n    at http://localhost/classes.wasm?v=3f5f817ad3e04fa9:wasm-function[179983]:0x5f04beb\n    at Object.r [as load] (http://localhost/classes.wasm-runtime.js?v=3f5f817ad3e04fa9:1:11204)\n    at async http://localhost/:523:11"
+  }
+}
