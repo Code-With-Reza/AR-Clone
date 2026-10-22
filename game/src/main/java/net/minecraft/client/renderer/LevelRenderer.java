@@ -207,6 +207,9 @@ public class LevelRenderer implements AutoCloseable {
          eaglerPhaseStarted = now;
       }
       profiler.popPush("setupFrameGraph");
+      boolean passthroughMode = net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge != null
+         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isActive()
+         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isPassthroughMode();
       FrameGraphBuilder frame = new FrameGraphBuilder();
       this.targets.main = frame.importExternal("main", this.gameRenderer.mainRenderTarget());
       int screenWidth = this.gameRenderer.mainRenderTarget().width;
@@ -232,7 +235,10 @@ public class LevelRenderer implements AutoCloseable {
             RenderSystem.getDevice()
                .createCommandEncoder()
                .clearColorAndDepthTextures(
-                  mainRenderTarget.getColorTexture(), new Vector4f(fogColor.x, fogColor.y, fogColor.z, 0.0F), mainRenderTarget.getDepthTexture(), 0.0
+                  mainRenderTarget.getColorTexture(),
+                  new Vector4f(passthroughMode ? 0.0F : fogColor.x, passthroughMode ? 0.0F : fogColor.y,
+                     passthroughMode ? 0.0F : fogColor.z, 0.0F),
+                  mainRenderTarget.getDepthTexture(), 0.0
                );
          }
       );
@@ -253,9 +259,6 @@ public class LevelRenderer implements AutoCloseable {
       }
 
       CloudStatus cloudStatus = this.optionsRenderState.cloudStatus;
-      boolean passthroughMode = net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge != null
-         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isActive()
-         && net.lax1dude.eaglercraft.v1_8.minecraft.EaglerHosted.webARBridge.isPassthroughMode();
       if (!passthroughMode && cloudStatus != CloudStatus.OFF && ARGB.alpha(this.levelRenderState.cloudColor) > 0) {
          this.addCloudsPass(
             frame,

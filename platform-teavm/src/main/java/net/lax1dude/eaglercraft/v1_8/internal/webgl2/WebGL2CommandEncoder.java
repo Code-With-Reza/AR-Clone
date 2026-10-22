@@ -527,6 +527,7 @@ public class WebGL2CommandEncoder implements CommandEncoderBackend, AutoCloseabl
 			// must be invalidated before bindVertexArray can safely skip identical binds.
 			this.lastProgram = null;
 			this.lastVertexArray = null;
+			this.lastPipeline = null;
 		}
 
 		if (WebGL2Surface.titleProbeEnabled && presentDiagCount < 3 && copyWidth > 4 && copyHeight > 4) {
