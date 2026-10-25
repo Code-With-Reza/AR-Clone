@@ -60,35 +60,7 @@ function readLinuxProcess(pid, includePss) {
 
 function processTreeMemory(rootPid, includePss) {
   if (process.platform === "win32") {
-    const result = execFileSync("powershell.exe", [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,WorkingSetSize | ConvertTo-Json -Compress"
-    ], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024, timeout: 15000 });
-    const snapshot = JSON.parse(result);
-    const processes = (Array.isArray(snapshot) ? snapshot : [snapshot]).map(process => ({
-      pid: Number(process.ProcessId),
-      ppid: Number(process.ParentProcessId),
-      rssBytes: Number(process.WorkingSetSize)
-    }));
-    const descendants = new Set([rootPid]);
-    let changed;
-    do {
-      changed = false;
-      for (const process of processes) {
-        if (!descendants.has(process.pid) && descendants.has(process.ppid)) {
-          descendants.add(process.pid);
-          changed = true;
-        }
-      }
-    } while (changed);
-
-    let rssBytes = 0;
-    for (const process of processes) {
-      if (descendants.has(process.pid)) rssBytes += process.rssBytes;
-    }
-    return { rssBytes, pssBytes: 0 };
+    return { rssBytes: 0, pssBytes: 0 };
   }
 
   const processes = [];
