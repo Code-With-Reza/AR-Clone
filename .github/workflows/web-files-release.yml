@@ -31,10 +31,11 @@ jobs:
         working-directory: build-source
         shell: pwsh
     env:
-      EAGLER_BUILD_CAP_MIB: "13312"
-      EAGLER_LINK_HEAP_MIB: "12288"
+      EAGLER_BUILD_CAP_MIB: "8192"
+      EAGLER_LINK_HEAP_MIB: "7168"
       JAVA_HOME: 'C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot'
       EAGLER_BASH: 'C:\Program Files\Git\bin\bash.exe'
+      _JAVA_OPTIONS: "-XX:+UseG1GC -XX:+AlwaysPreTouch"
 
     steps:
       - name: Check out game source
@@ -143,8 +144,12 @@ jobs:
           $archive = Join-Path $releaseDirectory "eaglercraft-26.2-web-files-$safeTag.zip"
           $webDirectory = Join-Path $env:GITHUB_WORKSPACE "build-source\target_teavm_wasm_gc\build\web"
           New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
-          Compress-Archive -Path (Join-Path $webDirectory "*") -DestinationPath $archive -Force
+          
+          # Load .NET compression and build zip fast without file conflicts
           Add-Type -AssemblyName System.IO.Compression.FileSystem
+          if (Test-Path $archive) { Remove-Item $archive -Force }
+          [System.IO.Compression.ZipFile]::CreateFromDirectory($webDirectory, $archive, [System.IO.Compression.CompressionLevel]::Fastest, $false)
+          
           $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
           try {
             $entries = @{}
