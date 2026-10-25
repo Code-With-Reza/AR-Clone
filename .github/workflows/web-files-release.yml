@@ -35,7 +35,6 @@ jobs:
       EAGLER_LINK_HEAP_MIB: "8192"
       JAVA_HOME: 'C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot'
       EAGLER_BASH: 'C:\Program Files\Git\bin\bash.exe'
-      _JAVA_OPTIONS: "-XX:+UseG1GC -XX:+AlwaysPreTouch"
 
     steps:
       - name: Check out game source
