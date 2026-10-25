@@ -231,7 +231,7 @@ withOperationLock(path.join(generated, "standalone-link-cache"), cacheOwner => {
       fs.mkdirSync(outputDirectory, { recursive: true });
       run(process.execPath, [
         path.join(repo, "wasm-toolchain", "run-memory-capped.js"),
-        "--limit-mib", "13312",
+        "--limit-mib", "16384",
         "--log-file", linkLog,
         "java",
           "-XX:+UnlockExperimentalVMOptions",
