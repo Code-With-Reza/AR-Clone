@@ -31,7 +31,7 @@ jobs:
         working-directory: build-source
         shell: pwsh
     env:
-      EAGLER_BUILD_CAP_MIB: "15360"
+      EAGLER_BUILD_CAP_MIB: "16384"
       EAGLER_LINK_HEAP_MIB: "8192"
       JAVA_HOME: 'C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot'
       EAGLER_BASH: 'C:\Program Files\Git\bin\bash.exe'
