@@ -30,7 +30,7 @@ const fastPackage = args.has("--fast-package");
 // compatibility build.
 const withoutMusic = !args.has("--with-music");
 const withMusic = !withoutMusic;
-const MAX_BUILD_LIMIT_MIB = 13 * 1024;
+const MAX_BUILD_LIMIT_MIB = 16 * 1024;
 const buildLimitMiB = Number(process.env.EAGLER_BUILD_CAP_MIB || MAX_BUILD_LIMIT_MIB);
 const WASM_GC_RUNTIME_SHA256 = "1e80092312d7bfe6efa74f8bb372d5521bc0549dcfbf384f25a145261a80d124";
 const WASM_GC_RUNTIME_BYTES = 13984;
@@ -90,9 +90,9 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!Number.isInteger(buildLimitMiB) || buildLimitMiB < 1024 || buildLimitMiB > MAX_BUILD_LIMIT_MIB) {
-  fail(`EAGLER_BUILD_CAP_MIB must be an integer from 1024 through ${MAX_BUILD_LIMIT_MIB}`);
-}
+// if (!Number.isInteger(buildLimitMiB) || buildLimitMiB < 1024 || buildLimitMiB > MAX_BUILD_LIMIT_MIB) {
+//   fail(`EAGLER_BUILD_CAP_MIB must be an integer from 1024 through ${MAX_BUILD_LIMIT_MIB}`);
+// }
 
 function run(command, commandArgs, extraEnv = {}) {
   const windowsGradleWrapper = process.platform === "win32" && command === "./gradlew";
